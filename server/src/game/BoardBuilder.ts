@@ -10,16 +10,16 @@ export class BoardBuilder {
             type: "board"
         }
         const map: Array<number[]> = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 5, 0, 0, 0],
-            [0, 5, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 5, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 5, 0],
-            [0, 0, 5, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 5, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            [0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,5,0,0,0],
+            [0,5,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,5,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,5,0],
+            [0,0,5,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,5,0,0],
+            [0,0,0,0,0,0,0,0,0,0]
         ]
         for (let i = 0; i < this.board.size; i++)
             for (let j = 0; j < this.board.size; j++)
@@ -32,7 +32,12 @@ export class BoardBuilder {
         return this.board;
     }
 
-    public serializeBoard(): any {
+    /* 
+    Converting Board into a JSON to be used for saving/transmitting.
+    https://developer.mozilla.org/en-US/docs/Glossary/Serialization
+    I also looked up information on how to implement it. I've also done it with Game and Room.
+    */
+    public serializationBoard(): any {
         return {
             type: this.board.type,
             content: {

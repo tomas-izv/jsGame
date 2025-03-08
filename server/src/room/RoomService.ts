@@ -5,9 +5,7 @@ import { Room, RoomConfig } from "./entities/Room";
 
 export class RoomService {
     private rooms: Room[];
-
     private static instance: RoomService;
-
     private constructor() {
         this.rooms = [];
     };
@@ -46,8 +44,8 @@ export class RoomService {
     }
 
     public getRoomByPlayerId(id: String): Room | null {
-        const roomOfPlayer = this.rooms.find((room) => room.players.find((player) => player.id.id == id));
-        if (roomOfPlayer) return roomOfPlayer;
+        const playersRoom = this.rooms.find((room) => room.players.find((player) => player.id.id == id));
+        if (playersRoom) return playersRoom;
         console.log("Room not found");
         return null;
     }

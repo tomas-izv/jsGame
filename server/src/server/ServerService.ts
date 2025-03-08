@@ -9,7 +9,14 @@ import { GameStates } from '../game/entities/Game';
 
 export class ServerService {
     private io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> | null;
+    /* 
+    I've created this because when I clicked one of the buttons, it did it many times even infinitely,
+    so I found information about Debouncing and flagging and tried to replicate how it works.
+    https://developer.mozilla.org/en-US/docs/Glossary/Debounce
 
+    I saw that there is something similar called Throttling, but I decided to go for Debouncing as I understood it more.
+    */
+    private debounceMap: Map<string, { move: boolean, rotate: boolean, shoot: boolean }> = new Map();
     private active: boolean;
 
     private messages = [
@@ -41,12 +48,13 @@ export class ServerService {
         this.active = true;
 
         this.io.on('connection', (socket) => {
+            this.debounceMap.set(socket.id, { move: false, rotate: false, shoot: false });
             // Connect
             socket.emit("connectionStatus", {
                 status: true,
                 message: {
                     conexion: "Established connection",
-                    jugador: socket.id
+                    player: socket.id
                 }
             });
             GameService.getInstance().addPlayer(GameService.getInstance().buildPlayer(socket, 10));
@@ -54,65 +62,50 @@ export class ServerService {
             // When a client disconnects
             socket.on('disconnect', () => {
                 console.log('A client has disconnected:', socket.id);
+                // I believe that the debounce of each player has to deleted when they disconnect/leave
+                this.debounceMap.delete(socket.id);
             });
 
             // When a player moves
             socket.on("movePlayer", (data) => {
-                console.log("Move player", data);
+                const playerId = socket.id;
+                const debounceFlag = this.debounceMap.get(playerId);
+
+                if (!debounceFlag || debounceFlag.move) return;
+
+                debounceFlag.move = true;
                 GameService.getInstance().movePlayer(data);
+                setTimeout(() => {
+                    debounceFlag.move = false;
+                }, 100);
             });
 
             // When a player shoots
             socket.on("shoot", (data) => {
-                console.log("Shoot", data);
+                const playerId = socket.id;
+                const debounceFlags = this.debounceMap.get(playerId);
+
+                if (!debounceFlags || debounceFlags.shoot) return;
+
+                debounceFlags.shoot = true;
                 GameService.getInstance().shootPlayer(data);
+                setTimeout(() => {
+                    debounceFlags.shoot = false;
+                }, 100);
             });
 
             // When a player rotates
             socket.on("rotatePlayer", (data) => {
-                console.log("Rotate player", data);
+                const playerId = socket.id;
+                const debounceFlags = this.debounceMap.get(playerId);
+
+                if (!debounceFlags || debounceFlags.rotate) return;
+                
+                debounceFlags.rotate = true;
                 GameService.getInstance().rotatePlayer(data);
-            });
-
-            // When the game restarts
-            socket.on("restartGame", (data) => {
-                console.log("Restart game", data);
-                const room = RoomService.getInstance().getRoomByPlayerId(data.playerId);
-                if (!room) return;
-
-                room.players.forEach(player => {
-                    player.state = PlayerStates.Idle;
-                    player.visibility = true;
-                });
-
-                if (room.game) {
-                    console.log("Game restarted");
-                    room.game.board = new BoardBuilder().getBoard();
-                    room.game.state = GameStates.PLAYING;
-
-                    const gameService = GameService.getInstance();
-                    if (!gameService.corners || gameService.corners.length === 0) {
-                        const size = room.game.board.size;
-                        gameService.corners = [
-                            [0, 0],
-                            [0, size - 1],
-                            [size - 1, 0],
-                            [size - 1, size - 1]
-                        ];
-                    }
-
-                    room.players.forEach(player => {
-                        const randomIndex = Math.floor(Math.random() * gameService.corners.length);
-                        const spawn = gameService.corners[randomIndex];
-                        if (spawn) {
-                            const [spawnX, spawnY] = spawn;
-                            player.x = spawnX;
-                            player.y = spawnY;
-                        }
-                        player.direction = Directions.Up;
-                    });
-                    ServerService.getInstance().sendMessageToRoom(room.name, gameService.serializeGame(room.game));
-                }
+                setTimeout(() => {
+                    debounceFlags.rotate = false;
+                }, 100);
             });
         });
     }
@@ -123,10 +116,9 @@ export class ServerService {
 
     public gameStartMessage(room: String) {
         console.log("Game start");
-        const board = new BoardBuilder().serializeBoard();
+        const board = new BoardBuilder().serializationBoard();
         console.log(board);
-        this.io?.to(room.toString()).emit('board', board);
-
+        this.io?.to(room.toString()).emit('board', board); // I added ? because of this error: 'Object is possibly 'null'.'
     }
 
     public isActive() {

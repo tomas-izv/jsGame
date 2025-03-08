@@ -4,8 +4,8 @@ export class GameController {
     #player = null;
 
     constructor(player) {
-        this.gameService = new GameService();
         this.connectionHandler = new ConnectionHandler();
+        this.gameService = new GameService();
         this.player = player;
     }
 
@@ -14,10 +14,9 @@ export class GameController {
             const key = event.key.toLowerCase();
             const controls = {
                 'arrowup': 'up',
+                'arrowright': 'right',
                 'arrowdown': 'down',
                 'arrowleft': 'left',
-                'arrowright': 'right',
-                
             };
 
             if (controls[key]) {

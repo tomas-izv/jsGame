@@ -1,11 +1,11 @@
-import { PrintInterface } from "../interfaces/PrintInterface.js";
 import { ConnectionHandler } from "../services/ConnectionHandler.js";
+import { UIv1 } from "../UIv1.js";
 
 export class Board {
     constructor(data, player) {
-        this.size = data.size;
         this.elements = data.elements;
         this.player = player;
+        this.size = data.size;
     }
 
     addElement(element) {
@@ -17,21 +17,21 @@ export class Board {
         console.log("Printed player: " + this.player);
         const size = this.size;
         let board = Array(size).fill().map(() => Array(size).fill(0));
-
         console.log(this.elements);
-        // Add bushes to the board
+
+        // Place bushes to the board
         this.elements.forEach(bush => {
             board[bush.x][bush.y] = 5;
         });
 
-        // PLace players on the board
+        // Place players on the board
         players.forEach(player => {
             if (player.visibility) {
                 board[player.x][player.y] = 1;
             }
         });
 
-        // Build the string board
+        // Build the board
         let boardString = "";
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size; j++) {
@@ -53,12 +53,12 @@ export class Board {
         let board = Array(size).fill().map(() => Array(size).fill(0));
 
         this.elements.forEach(bush => {
-            board[bush.x][bush.y] = 1;
+            board[bush.x][bush.y] = 5;
         });
 
         players.forEach(player => {
             if (player.visibility) {
-                board[player.x][player.y] = 2;
+                board[player.x][player.y] = 2; // Player visibility = 2
             }
         });
 
@@ -69,23 +69,23 @@ export class Board {
             const row = document.createElement('div');
             row.className = 'board-row';
             for (let j = 0; j < size; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'board-cell';
-                cell.dataset.x = i;
-                cell.dataset.y = j;
+                const square = document.createElement('div');
+                square.className = 'board-square';
+                square.dataset.x = i;
+                square.dataset.y = j;
 
                 const isBush = this.elements.some(bush => bush.x === i && bush.y === j);
-                const matchingPlayer = players.find(player => player.x === i && player.y === j);
+                const isPlayer = players.find(player => player.x === i && player.y === j);
 
-                if (isBush && matchingPlayer) {
-                    cell.classList.add('player-in-bush');
+                if (isBush && isPlayer) {
+                    square.classList.add('player-in-bush');
                 } else if (isBush) {
-                    cell.classList.add('bush');
-                } else if (matchingPlayer) {
-                    cell.classList.add('player', matchingPlayer.direction);
+                    square.classList.add('bush');
+                } else if (isPlayer) {
+                    square.classList.add('player', isPlayer.direction);
                 }
 
-                row.appendChild(cell);
+                row.appendChild(square);
             }
             boardContainer.appendChild(row);
         }
@@ -96,33 +96,15 @@ export class Board {
             controls.id = 'controls-container';
             controls.className = 'controls';
             controls.innerHTML = `
-            <button id="advance">Advance</button>
+            <button id="move">Move</button>
             <button id="rotate">Rotate</button>
             <button id="shoot">Shoot</button>
         `;
             document.body.appendChild(controls);
         }
 
-        setTimeout(() => this.addEventListeners(), 50);
+        setTimeout(() => this.addEventListeners(), 25);
 
-        // // Animate Board Appearance
-        // anime({
-        //     targets: '.board-cell',
-        //     scale: [0, 1],
-        //     opacity: [0, 1],
-        //     duration: 500,
-        //     easing: 'easeOutBounce',
-        //     delay: anime.stagger(30)
-        // });
-
-        // // **Animate Bushes**
-        // anime({
-        //     targets: '.bush',
-        //     scale: [0.5, 1],
-        //     opacity: [0, 1],
-        //     duration: 800,
-        //     easing: 'easeOutElastic'
-        // });
 
         this.addEventListeners();
     }
@@ -131,85 +113,51 @@ export class Board {
         const playerElement = document.querySelector(`.player[data-id="${playerId}"]`);
 
         if (playerElement) {
-            anime({
-                targets: playerElement,
-                translateX: newX * 22, // Assuming each grid cell is 22px
-                translateY: newY * 22,
-                duration: 400,
-                easing: 'easeInOutQuad'
-            });
-
-            playerElement.className = `board-cell player ${direction}`;
+            playerElement.className = `board-square player ${direction}`;
         }
 
         this.addEventListeners();
     }
 
     addEventListeners() {
-        const advanceBtn = document.getElementById('advance');
+        //I've done the the same as in Ui.js to try and fix the issue.
+        const moveBtn = document.getElementById('move');
         const rotateBtn = document.getElementById('rotate');
         const shootBtn = document.getElementById('shoot');
 
-        if (!advanceBtn || !rotateBtn || !shootBtn) {
-            console.warn("Buttons not found! Retrying...");
-            setTimeout(() => this.addEventListeners(), 100); // Retry after 100ms
+        if (!moveBtn || !rotateBtn || !shootBtn) {
+            console.warn("Could not find buttons, Retrying");
+            setTimeout(() => this.addEventListeners(), 50);
             return;
         }
 
-        advanceBtn.addEventListener('click', () => {
-            console.log("Player " + this.player + " advances");
-            ConnectionHandler.socket.emit("movePlayer", { direction: "advance", playerId: this.player });
+        moveBtn.removeEventListener('click', this.handleMove);
+        rotateBtn.removeEventListener('click', this.handleRotate);
+        shootBtn.removeEventListener('click', this.handleShoot);
 
-            const playerElement = document.querySelector(`.player[data-id="${this.player}"]`);
-            if (playerElement) {
-                anime({
-                    targets: playerElement,
-                    translateY: "-=22",
-                    duration: 400,
-                    easing: 'easeInOutQuad'
-                });
-            }
-        });
+        this.handleMove = () => {
+            console.log("Player " + this.player + " moved");
+            ConnectionHandler.socket.emit("movePlayer", { direction: "move", playerId: this.player });
+        };
 
-        rotateBtn.addEventListener('click', () => {
-            console.log("Player " + this.player + " rotates");
+        this.handleRotate = () => {
+            console.log("Player " + this.player + " rotated");
             ConnectionHandler.socket.emit("rotatePlayer", { direction: "right", playerId: this.player });
+        };
 
-            const playerElement = document.querySelector(`.player[data-id="${this.player}"]`);
-            if (playerElement) {
-                anime({
-                    targets: playerElement,
-                    rotate: "+=90",
-                    duration: 300,
-                    easing: "easeInOutQuad"
-                });
-            }
-        });
-
-        shootBtn.addEventListener('click', () => {
+        this.handleShoot = () => {
             console.log("Player " + this.player + " shot");
             ConnectionHandler.socket.emit("shoot", { playerId: this.player });
-        });
+        };
 
-        console.log("Event listeners successfully attached!");
+        moveBtn.addEventListener('click', this.handleMove);
+        rotateBtn.addEventListener('click', this.handleRotate);
+        shootBtn.addEventListener('click', this.handleShoot);
+
+        console.log("Event listeners success");
     }
-
-
 
     static showGameOver() {
         alert("Game Over");
-    }
-
-    static showRestartButton() {
-        // Show restart button
-        const container = document.getElementById('game-container');
-        const btn = document.createElement('button');
-        btn.innerText = "Restart game";
-        btn.addEventListener('click', () => {
-            ConnectionHandler.socket.emit("restartGame", { playerId: ConnectionHandler.gameService.player });
-            // Clean the restart container
-            container.innerHTML = '';
-        });
-        container.appendChild(btn);
     }
 }

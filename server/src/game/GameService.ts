@@ -1,17 +1,15 @@
-import { Socket } from "socket.io";
+import { BoardBuilder } from "./BoardBuilder";
 import { Directions, Player, PlayerStates } from "../player/entities/Player";
+import { Game, GameStates } from "./entities/Game";
 import { Room } from "../room/entities/Room";
 import { RoomService } from "../room/RoomService";
-import { Game, GameStates } from "./entities/Game";
-import { BoardBuilder } from "./BoardBuilder";
 import { ServerService } from "../server/ServerService";
-
+import { Socket } from "socket.io";
 
 export class GameService {
     private games: Game[];
 
     private static instance: GameService;
-
     private constructor() {
         this.games = [];
     };
@@ -26,7 +24,7 @@ export class GameService {
 
     public corners: [number, number][] = [];
 
-    // Start corners
+    // Establish corners (boardSize is the length of the array -1 to get the last position)
     private initCorners(boardSize: number): void {
         this.corners = [
             [0, 0],
@@ -37,15 +35,14 @@ export class GameService {
     }
 
     public buildPlayer(socket: Socket, boardSize: number): Player {
-        // Start corners array if no already
         if (this.corners.length === 0) {
             this.initCorners(boardSize);
         }
 
-        // Get a random corner
+        // Get a random corner for player starting position
         const randomIndex = Math.floor(Math.random() * this.corners.length);
         const [spawnX, spawnY] = this.corners[randomIndex];
-        // Delete used corner
+        // Delete used corner from array to not duplicate it
         this.corners.splice(randomIndex, 1);
 
         return {
@@ -61,9 +58,7 @@ export class GameService {
     public addPlayer(player: Player): boolean {
         const room: Room = RoomService.getInstance().addPlayer(player);
         const genRanHex = (size: Number) => [...Array(size)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-
         if (room.players.length == 1) {
-
             const game: Game = {
                 board: new BoardBuilder().getBoard(),
                 id: "game" + genRanHex(128),
@@ -72,9 +67,6 @@ export class GameService {
             }
             room.game = game;
             this.games.push(game);
-            console.log("Created game: ", game.id);
-
-
         }
 
         if (room.occupied) {
@@ -82,13 +74,12 @@ export class GameService {
                 room.game.state = GameStates.PLAYING;
                 if (ServerService.getInstance().isActive()) {
                     ServerService.getInstance().gameStartMessage(room.name);
-                    // Message to start game
-                    ServerService.getInstance().sendMessageToRoom(room.name, this.serializeGame(room.game));
-                    console.log(JSON.stringify(this.serializeGame(room.game)));
+                    ServerService.getInstance().sendMessageToRoom(room.name, this.serializationGame(room.game));
                 }
             }
             return true;
         }
+        
         return false;
     }
 
@@ -96,14 +87,20 @@ export class GameService {
         const room = RoomService.getInstance().getRoomByPlayerId(data.playerId);
         if (!room || !room.game) return;
 
-        const boardSize = room.game.board.size;
         const player = room.players.find((p) => p.id.id === data.playerId);
         if (!player) return;
 
+        // Avoid multiple moves in quick succession
+        if (player.state === PlayerStates.Moving) return;
+
+        // Mark player as moving to prevent rapid consecutive moves
+        player.state = PlayerStates.Moving;
+
+        const boardSize = room.game.board.size;
         let newX = player.x;
         let newY = player.y;
 
-        if (data.direction === "advance") {
+        if (data.direction === "move") {
             // Position depending on direction
             switch (player.direction) {
                 case Directions.Up:
@@ -120,27 +117,32 @@ export class GameService {
                     break;
             }
 
-            // Don't allow to move to a space that is occupied
+            // Doesn't allow to move to a space that is occupied
             const occupied = room.players.some(p => p.id.id !== data.playerId && p.x === newX && p.y === newY);
             if (occupied) {
                 return;
             }
 
-            // Don't allow to move outside of the board
+            // Doesn't allow to move outside of the board
             if (newX < 0 || newX >= boardSize || newY < 0 || newY >= boardSize) {
                 return;
             }
 
-            // If none of the above, move
             player.x = newX;
             player.y = newY;
+
+            // Reset player state to idle after movement
+            setTimeout(() => {
+                player.state = PlayerStates.Idle;
+            }, 500); // Add a slight delay before allowing another movement
         }
 
-        // Check to see if there is only one player is left
+        
+        // Check if the game is over by only having one player left that is alive
         if (this.checkGameOver(room)) {
-            ServerService.getInstance().sendMessageToRoom(room.name, this.serializeGame(room.game));
+            ServerService.getInstance().sendMessageToRoom(room.name, this.serializationGame(room.game));
         } else {
-            ServerService.getInstance().sendMessageToRoom(room.name, this.serializeGame(room.game));
+            ServerService.getInstance().sendMessageToRoom(room.name, this.serializationGame(room.game));
         }
 
 
@@ -153,13 +155,12 @@ export class GameService {
         const player = room.players.find((p) => p.id.id == data.playerId);
         if (!player) return;
 
-        // Clockwise rotation, starting up
-        const dirOrder = [Directions.Up, Directions.Right, Directions.Down, Directions.Left];
-        const currentIndex = dirOrder.indexOf(player.direction);
-        const newIndex = (currentIndex + 1) % dirOrder.length;
-        player.direction = dirOrder[newIndex];
+        const clockwiseRotation = [Directions.Up, Directions.Right, Directions.Down, Directions.Left];
+        const currentIndex = clockwiseRotation.indexOf(player.direction);
+        const newIndex = (currentIndex + 1) % clockwiseRotation.length;
+        player.direction = clockwiseRotation[newIndex];
 
-        ServerService.getInstance().sendMessageToRoom(room.name, this.serializeGame(room.game));
+        ServerService.getInstance().sendMessageToRoom(room.name, this.serializationGame(room.game));
     }
 
     public shootPlayer(data: any) {
@@ -170,7 +171,7 @@ export class GameService {
         const shooter = room.players.find(p => p.id.id === data.playerId);
         if (!shooter) return;
 
-        // Shoot space in front of direction
+        // Shoot square in front of direction
         let targetX = shooter.x;
         let targetY = shooter.y;
         switch (shooter.direction) {
@@ -188,30 +189,28 @@ export class GameService {
                 break;
         }
 
-        // Space is in the map
+        // Makes sure that the square is in the map
         if (targetX < 0 || targetX >= boardSize || targetY < 0 || targetY >= boardSize) {
             return;
         }
 
-        // Check for a player in the space
+        // Checks for a player in the square that is being shot at
         const targetPlayer = room.players.find(p => p.x === targetX && p.y === targetY);
         if (targetPlayer) {
-            // If true, kill (PlayerStates.Dead)
             targetPlayer.state = PlayerStates.Dead;
             console.log(`Player ${targetPlayer.id.id} killed.`);
         }
 
         if (this.checkGameOver(room)) {
-            ServerService.getInstance().sendMessageToRoom(room.name, this.serializeGame(room.game));
+            ServerService.getInstance().sendMessageToRoom(room.name, this.serializationGame(room.game));
         } else {
-            ServerService.getInstance().sendMessageToRoom(room.name, this.serializeGame(room.game));
+            ServerService.getInstance().sendMessageToRoom(room.name, this.serializationGame(room.game));
         }
     }
 
     private checkGameOver(room: Room): boolean {
         const alivePlayers = room.players.filter(p => p.state !== PlayerStates.Dead);
         if (alivePlayers.length <= 1) {
-            // Game state ENDED
             if (room.game)
                 room.game.state = GameStates.ENDED;
             return true;
@@ -219,8 +218,8 @@ export class GameService {
         return false;
     }
 
-    // Translate Room into a json for its transfer
-    private serializeRoom(room: Room): any {
+    // Converting Room into a JSON to be used for saving/transmitting
+    private serializationRoom(room: Room): any {
         return {
             name: room.name,
             occupied: room.occupied,
@@ -235,14 +234,14 @@ export class GameService {
         };
     }
 
-    // Translate Game into a json for its transfer
-    public serializeGame(game: Game): any {
+    // Converting Game into a JSON to be used for saving/transmitting
+    public serializationGame(game: Game): any {
         return {
             type: "game",
             content: {
                 id: game.id,
                 state: game.state,
-                room: this.serializeRoom(game.room),
+                room: this.serializationRoom(game.room),
                 board: {
                     type: game.board.type,
                     size: game.board.size,

@@ -1,11 +1,10 @@
 import { Socket } from "socket.io";
-import { serialize } from "v8";
 
 export enum Directions {
     Up = "up", 
+    Right = "right",
     Down = "down",
     Left = "left",
-    Right = "right",
     Idle = "idle"
 }
 
