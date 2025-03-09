@@ -39,8 +39,10 @@
 }
 
 .player-in-bush {
-    opacity: 0.5;
-    background-color: transparent;
+    background-image: url("../img/bush.jpg");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 .controls {

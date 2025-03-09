@@ -59,12 +59,36 @@ export class ServerService {
             });
             GameService.getInstance().addPlayer(GameService.getInstance().buildPlayer(socket, 10));
 
-            // When a client disconnects
-            socket.on('disconnect', () => {
-                console.log('A client has disconnected:', socket.id);
-                // I believe that the debounce of each player has to deleted when they disconnect/leave
-                this.debounceMap.delete(socket.id);
-            });
+            // // When a player disconnects
+            // socket.on('disconnect', () => {
+            //     console.log('A player has disconnected:', socket.id);
+                
+            //     // I believe that the debounce of each player has to deleted when they disconnect/leave
+            //     this.debounceMap.delete(socket.id);
+
+            //     let room = RoomService.getInstance().getRoomByPlayerId(socket.id);
+            //     if (room) {
+            //         let player = room.players.find(p => p.id.id === socket.id); // I had to add an .id because I was getting an error of type coompability
+            //         if (player) {
+            //             player.state = PlayerStates.Not_Connected; 
+            //             this.io?.to(room.name.toString()).emit("updateGame", room);
+            //         }
+            //     }
+            // });
+
+            // //When a player reconnects
+            // socket.on("reconnect", () => {
+            //     console.log('A player has reconnected:', socket.id);
+
+            //     let room = RoomService.getInstance().getRoomByPlayerId(socket.id);
+            //     if (room) {
+            //         let player = room.players.find(p => p.id.id === socket.id);
+            //         if (player) {
+            //             player.state = PlayerStates.Idle;
+            //             this.io?.to(room.name.toString()).emit("updateGame", room);
+            //         }
+            //     }
+            // });
 
             // When a player moves
             socket.on("movePlayer", (data) => {

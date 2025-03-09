@@ -189,7 +189,7 @@ export class GameService {
                 break;
         }
 
-        // Makes sure that the square is in the map
+        // Makes sure that the square is in the board
         if (targetX < 0 || targetX >= boardSize || targetY < 0 || targetY >= boardSize) {
             return;
         }
