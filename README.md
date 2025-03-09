@@ -82,15 +82,15 @@ El tablero es como mencionado en el primer apartado.
 
 ### Gestión de Salas y Control de Juego 
 - En el lado del servidor
-	<a href="./server/src/room/entities/Room.ts">
+	<a href="./server/src/room/entities/Room.ts">Room.ts</a>
 	La constante RoomConfig define la cantidad máxima de jugadores por sala 4.
 	Room.ts es una interfaz que representa una sala de juego, incluyendo el estado del juego *game*, su nombre *name*, si está ocupada *occupied*, y la lista de jugadores *players*.
-	<a href="./server/src/room/RoomService.ts">
+	<a href="./server/src/room/RoomService.ts">RoomService.ts</a>
 	RoomService.ts es un servicio que gestiona las salas del juego. Implementa el patrón singleton para garantizar una única instancia.
 	La función ‘getRoom()’ busca una sala desocupada; si no encuentra una, crea una nueva con un nombre aleatorio y la agrega a la lista.
 	La función ‘addPlayer()’ añade un jugador a una sala disponible, y la marca como ocupada si alcanza el máximo de jugadores y lo registra en el servidor.
 	La función ‘getRoomByPlayerId()’ devuelve la sala en la que se encuentra un jugador según su ID o null si no se encuentra.
-	<a href="./server/src/game/GameService.ts">
+	<a href="./server/src/game/GameService.ts">GameService.ts</a>
 	La función ‘addPlayer()’ asigna un jugador a una sala; si es el primero en unirse, crea un 	nuevo juego en estado WAITING. Cuando la sala se llena, cambia el estado del juego a PLAYING y envía un mensaje de inicio.
 	La función ‘checkGameOver()’ verifica si solo queda un jugador vivo; si es así, cambia el 	estado del juego a ENDED y retorna true, indicando que la partida ha terminado.
 	La función ‘serializationGame()’ convierte un objeto Game en un formato JSON, incluyendo su estado *state*, ID, sala y detalles del tablero, para facilitar su transmisión/almacenamiento. La serialización tuve que buscar yo la información para poder transmitir Board, Game y Room eficientemente.
